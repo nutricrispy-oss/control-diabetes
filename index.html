@@ -4,78 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Control Diabetes</title>
-<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0b6e74"><script>try{if(localStorage.getItem("cd_pin"))document.documentElement.classList.add("locked")}catch(e){}
-// ---- PIN ----
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-const lsg=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lss=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
-const getPin=()=>{try{return JSON.parse(lsg("cd_pin")||"null")}catch(e){return null}};
-async function hashPin(p,s){try{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s+":"+p));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}catch(e){return "b"+btoa(s+":"+p)}}
-const root=document.documentElement;let pinRes=null,pinBuf="";
-const drawDots=()=>{$("lkD").innerHTML=[0,1,2,3].map(i=>`<i class="${i<pinBuf.length?"f":""}"></i>`).join("")};
-const hideLock=()=>{pinRes=null;pinBuf="";root.classList.remove("locked")};
-function askPin(title,o={}){return new Promise(res=>{pinBuf="";pinRes=res;$("lkT").textContent=title;$("lkE").textContent=o.err||"";$("lkX").style.visibility=o.cancel?"visible":"hidden";$("lkF").style.display=o.forgot?"inline-block":"none";drawDots();root.classList.add("locked")})}
-$("lkK").onclick=e=>{const b=e.target.closest("button");if(!b||!pinRes)return;const v=b.dataset.k;
-if(v==="c"){const r=pinRes;pinRes=null;r(null);return}
-if(v==="x")pinBuf=pinBuf.slice(0,-1);else if(pinBuf.length<4)pinBuf+=v;
-drawDots();if(pinBuf.length===4){const r=pinRes,p=pinBuf;pinRes=null;pinBuf="";r(p)}};
-async function verifyLoop(cancel){let err="";
-for(;;){let u=+lsg("cd_until")||0;
-while(Date.now()<u){root.classList.add("locked");$("lkT").textContent="Bloqueado temporalmente";$("lkE").textContent=`Espera ${Math.ceil((u-Date.now())/1000)} s`;$("lkF").style.display="inline-block";await sleep(500)}
-const p=await askPin("Ingresa tu PIN",{cancel,err,forgot:true});
-if(p===null)return false;
-const s=getPin();if(s&&await hashPin(p,s.salt)===s.hash){lss("cd_fail",0);return true}
-const f=(+lsg("cd_fail")||0)+1;lss("cd_fail",f);err="PIN incorrecto";if(f>=5)lss("cd_until",Date.now()+30000*Math.min(f-4,10))}}
-function pinInfo(){const on=!!getPin();$("pinSt").textContent=on?"PIN activado ✔ Se pide al abrir y tras 1 minuto fuera de la app.":"PIN desactivado.";$("pinOn").hidden=on;$("pinChg").hidden=!on;$("pinOff").hidden=!on}
-async function newPin(){const a=await askPin("Crea un PIN de 4 dígitos",{cancel:true});if(a===null)return hideLock();
-const b=await askPin("Repite el PIN",{cancel:true});hideLock();if(b===null)return;
-if(a!==b){alert("Los PIN no coinciden. No se hizo ningún cambio.");return}
-const salt=[...crypto.getRandomValues(new Uint8Array(8))].join("");lss("cd_pin",JSON.stringify({salt,hash:await hashPin(a,salt)}));lss("cd_fail",0);pinInfo()}
-$("pinOn").onclick=newPin;
-$("pinChg").onclick=async()=>{if(await verifyLoop(true))await newPin();else hideLock()};
-$("pinOff").onclick=async()=>{if(await verifyLoop(true)){hideLock();try{localStorage.removeItem("cd_pin")}catch(e){}pinInfo()}else hideLock()};
-$("lkF").onclick=()=>{if(!confirm("Se borrarán TODOS los datos de esta app en este teléfono (historial, parámetros, alimentos y PIN). Solo podrás recuperarlos con una copia de seguridad. ¿Continuar?"))return;if(!confirm("¿Seguro? No se puede deshacer."))return;
-["cd_p","cd_h","cd_c","cd_f","cd_pin","cd_fail","cd_until","cd_lastbk"].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});location.reload()};
-let away=0;document.addEventListener("visibilitychange",()=>{if(document.hidden)away=Date.now();else if(getPin()&&away&&Date.now()-away>60000&&!pinRes)verifyLoop(false).then(hideLock)});
-pinInfo();if(getPin())verifyLoop(false).then(hideLock);
-
-// ---- Alimentos ----
-let F=[],plate=[],selF=null,editId=null,curFoods="";
-const SEED=[["Mandioca hervida",38,150,"1 trozo mediano"],["Tallarín / fideo hervido",31,200,"1 plato estándar"],["Arroz blanco cocido",28,150,"1 taza colmada"],["Sopa paraguaya",25,120,"1 cuadrado mediano"],["Chipa guasu",22,120,"1 porción mediana"],["Chipa almidón tradicional",50,100,"1 unidad mediana"],["Papa hervida",17,150,"1 papa mediana"],["Batata / boniato hervido",24,100,"1 unidad chica"],
-["Coquito común paraguayo",65,5,"1 unidad"],["Galleta de campaña / cuarto",58,70,"1 unidad entera"],["Pan Felipe / flauta",52,30,"1/2 unidad"],["Pan de sándwich integral",40,50,"2 rebanadas"],["Pan de miga blanco (sin borde)",44,40,"2 rebanadas finas"],["Rapiditas Bimbo clásicas",53,26,"1 tortilla"],["Rapiditas Bimbo integrales / light",51,26,"1 tortilla"],
-["Banana",22,90,"1 unidad mediana"],["Mango",15,150,"1 taza picada"],["Manzana (con cáscara)",14,150,"1 unidad mediana"],["Naranja / mandarina entera",12,120,"1 unidad mediana"],["Sandía / melón",8,200,"1 porción grande"],["Calabaza / zapallo hervido",6,150,"puré o bori bori"],["Tomate, locote, cebolla, pepino",4,150,"ensalada mixta"],["Hojas verdes (lechuga, acelga, repollo)",0,null,""],
-["Coca-Cola original (roja)",10.6,200,"1 vaso (lata = 355 ml)"],["Coca-Cola Zero / Light",0,200,"1 vaso"],["Leche entera o descremada",5,240,"1 taza"],["Yogur entero clásico (con azúcar)",13,125,"1 pote"],["Yogur diet / light / zero",4,125,"1 pote"],["Jugo de naranja natural / cartón",10,250,"1 vaso"],
-["Queso paraguay / muzzarella / fetas",0,null,""],["Requesón culinario / queso crema",3,30,"1 cucharada"],["Jamón cocido, lomito, panceta",1,null,""],["Chorizo parrillero / casero",1,null,""],["Mayonesa clásica / mostaza",2,15,"1 cucharada"],["Kétchup comercial",24,15,"1 cucharada"],["Salchichas de Viena / panchos",4,100,"2 unidades"],["Carnes (vaca, pollo, pescado) y huevos",0,null,""]];
-function loadF(){const x=lsg("cd_f");if(x){try{F=JSON.parse(x)}catch(e){F=[]}}else{F=SEED.map((s,i)=>({id:i+1,n:s[0],c:s[1],p:s[2],l:s[3]}));saveF()}}
-const saveF=()=>lss("cd_f",JSON.stringify(F));
-const norm=s=>String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-const chOf=(f,g)=>Math.round(f.c*g/100*10)/10;
-const plateTot=()=>Math.round(plate.reduce((s,i)=>s+i.ch,0)*10)/10;
-function renderPlate(){const t=plateTot();$("plate").innerHTML=plate.length?`<b>Plato actual</b>`+plate.map((i,k)=>`<div class="row"><span>${esc(i.n)} · ${i.g} g/ml</span><span><b style="font-size:18px">${i.ch} g</b> <button class="btn" data-rm="${k}" style="padding:4px 10px">✕</button></span></div>`).join("")+`<div class="row total"><span>Total CH</span><b style="font-size:30px">${t} g</b></div><button class="big" id="usePlate" style="margin-top:8px;padding:14px;font-size:17px">Usar ${t} g en la calculadora</button>`:'<div class="small">Plato vacío. Elige alimentos de la lista.</div>'}
-function renderFoods(){const q=norm($("fq").value.trim());const l=F.filter(f=>!q||norm(f.n).includes(q)).sort((a,b)=>a.n.localeCompare(b.n,"es"));
-$("flist").innerHTML=l.length?l.map(f=>`<div class="row" style="gap:6px"><button class="btn" style="flex:1;text-align:left;border-color:var(--line);color:var(--ink)" data-sel="${f.id}">${esc(f.n)}<div class="small">${f.c} g CH/100${f.p?` · porción ${f.p} g${f.l?` (${esc(f.l)})`:""}`:""}</div></button><button class="btn" data-ed="${f.id}" style="padding:8px">✏️</button><button class="btn" data-fdel="${f.id}" style="padding:8px">🗑</button></div>`).join(""):'<div class="small">Sin resultados.</div>'}
-function showSel(f){selF=f;const d=$("fsel"),p=f.p||100;d.hidden=false;
-d.innerHTML=`<b>${esc(f.n)}</b><label>Cantidad (g o ml)</label><input id="qg" type="number" inputmode="decimal" value="${p}">${f.p?`<div class="g2" style="margin-top:6px">${[[.5,"½ porción"],[1,"1 porción"],[2,"2 porciones"],[3,"3 porciones"]].map(x=>`<button class="btn" data-q="${f.p*x[0]}">${x[1]}</button>`).join("")}</div>`:""}<div class="row total"><span>CH</span><b id="qc" style="font-size:30px">${chOf(f,p)} g</b></div><button class="big" id="qadd" style="margin-top:6px;padding:14px;font-size:17px">Agregar al plato</button>`;d.scrollIntoView({behavior:"smooth",block:"nearest"})}
-const upQ=()=>{const g=parseFloat($("qg").value);$("qc").textContent=(g>0?chOf(selF,g):0)+" g"};
-$("fsel").oninput=e=>{if(e.target.id==="qg")upQ()};
-$("fsel").onclick=e=>{const t=e.target;if(t.dataset.q){$("qg").value=t.dataset.q;upQ()}
-if(t.id==="qadd"){const g=parseFloat($("qg").value);if(!(g>0))return;plate.push({n:selF.n,g,ch:chOf(selF,g)});$("fsel").hidden=true;renderPlate()}};
-$("plate").onclick=e=>{const t=e.target;if(t.dataset.rm!==undefined){plate.splice(+t.dataset.rm,1);renderPlate()}
-if(t.id==="usePlate"){$("ch").value=plateTot();curFoods=plate.map(i=>`${i.n} ${i.g}g=${i.ch}g`).join(", ");$("fp").hidden=true}};
-$("flist").onclick=e=>{const b=e.target.closest("button");if(!b)return;const d=b.dataset;
-if(d.sel)showSel(F.find(f=>f.id==d.sel));
-if(d.ed){const f=F.find(x=>x.id==d.ed);editId=f.id;$("fn").value=f.n;$("fc").value=f.c;$("fpp").value=f.p??"";$("fl").value=f.l||"";$("fn").scrollIntoView({behavior:"smooth"})}
-if(d.fdel&&confirm("¿Eliminar este alimento de la lista?")){F=F.filter(f=>f.id!=d.fdel);saveF();renderFoods()}};
-const clearForm=()=>{editId=null;["fn","fc","fpp","fl"].forEach(i=>$(i).value="");$("fErr").textContent=""};
-$("fCancel").onclick=clearForm;
-$("fSave").onclick=()=>{const n=$("fn").value.trim(),c=parseFloat($("fc").value),p=$("fpp").value===""?null:parseFloat($("fpp").value);
-if(!n||!(c>=0)||c>100||(p!==null&&!(p>0))){$("fErr").textContent="Revisa: nombre, CH por 100 g (0 a 100) y porción (mayor que 0).";return}
-const o={n,c,p,l:$("fl").value.trim()};if(editId){Object.assign(F.find(f=>f.id===editId),o)}else F.push({id:Math.max(0,...F.map(f=>f.id))+1,...o});
-saveF();clearForm();renderFoods()};
-$("fq").oninput=renderFoods;
-$("openFp").onclick=()=>{$("fp").hidden=false;$("fsel").hidden=true;renderPlate();renderFoods()};
-$("fpX").onclick=()=>{$("fp").hidden=true};
-loadF();
-</script><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0b6e74"><script>try{if(localStorage.getItem("cd_pin"))document.documentElement.classList.add("locked")}catch(e){}</script><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{--bg:#f3f6f8;--card:#fff;--ink:#14232b;--mut:#5d6e77;--line:#d9e2e7;--acc:#0b6e74;--accInk:#fff;--warn:#fff4d6;--warnInk:#6b4a00;--bad:#b3261e;--bar1:#0b6e74;--bar2:#e08a1e;--bar3:#6a5acd;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
@@ -349,6 +278,78 @@ $("xPdf").onclick=()=>{$("fPer").value="0";$("fMeal").value="";document.querySel
 bkInfo();
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+
+// ---- PIN ----
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const lsg=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lss=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+const getPin=()=>{try{return JSON.parse(lsg("cd_pin")||"null")}catch(e){return null}};
+async function hashPin(p,s){try{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s+":"+p));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}catch(e){return "b"+btoa(s+":"+p)}}
+const root=document.documentElement;let pinRes=null,pinBuf="";
+const drawDots=()=>{$("lkD").innerHTML=[0,1,2,3].map(i=>`<i class="${i<pinBuf.length?"f":""}"></i>`).join("")};
+const hideLock=()=>{pinRes=null;pinBuf="";root.classList.remove("locked")};
+function askPin(title,o={}){return new Promise(res=>{pinBuf="";pinRes=res;$("lkT").textContent=title;$("lkE").textContent=o.err||"";$("lkX").style.visibility=o.cancel?"visible":"hidden";$("lkF").style.display=o.forgot?"inline-block":"none";drawDots();root.classList.add("locked")})}
+$("lkK").onclick=e=>{const b=e.target.closest("button");if(!b||!pinRes)return;const v=b.dataset.k;
+if(v==="c"){const r=pinRes;pinRes=null;r(null);return}
+if(v==="x")pinBuf=pinBuf.slice(0,-1);else if(pinBuf.length<4)pinBuf+=v;
+drawDots();if(pinBuf.length===4){const r=pinRes,p=pinBuf;pinRes=null;pinBuf="";r(p)}};
+async function verifyLoop(cancel){let err="";
+for(;;){let u=+lsg("cd_until")||0;
+while(Date.now()<u){root.classList.add("locked");$("lkT").textContent="Bloqueado temporalmente";$("lkE").textContent=`Espera ${Math.ceil((u-Date.now())/1000)} s`;$("lkF").style.display="inline-block";await sleep(500)}
+const p=await askPin("Ingresa tu PIN",{cancel,err,forgot:true});
+if(p===null)return false;
+const s=getPin();if(s&&await hashPin(p,s.salt)===s.hash){lss("cd_fail",0);return true}
+const f=(+lsg("cd_fail")||0)+1;lss("cd_fail",f);err="PIN incorrecto";if(f>=5)lss("cd_until",Date.now()+30000*Math.min(f-4,10))}}
+function pinInfo(){const on=!!getPin();$("pinSt").textContent=on?"PIN activado ✔ Se pide al abrir y tras 1 minuto fuera de la app.":"PIN desactivado.";$("pinOn").hidden=on;$("pinChg").hidden=!on;$("pinOff").hidden=!on}
+async function newPin(){const a=await askPin("Crea un PIN de 4 dígitos",{cancel:true});if(a===null)return hideLock();
+const b=await askPin("Repite el PIN",{cancel:true});hideLock();if(b===null)return;
+if(a!==b){alert("Los PIN no coinciden. No se hizo ningún cambio.");return}
+const salt=[...crypto.getRandomValues(new Uint8Array(8))].join("");lss("cd_pin",JSON.stringify({salt,hash:await hashPin(a,salt)}));lss("cd_fail",0);pinInfo()}
+$("pinOn").onclick=newPin;
+$("pinChg").onclick=async()=>{if(await verifyLoop(true))await newPin();else hideLock()};
+$("pinOff").onclick=async()=>{if(await verifyLoop(true)){hideLock();try{localStorage.removeItem("cd_pin")}catch(e){}pinInfo()}else hideLock()};
+$("lkF").onclick=()=>{if(!confirm("Se borrarán TODOS los datos de esta app en este teléfono (historial, parámetros, alimentos y PIN). Solo podrás recuperarlos con una copia de seguridad. ¿Continuar?"))return;if(!confirm("¿Seguro? No se puede deshacer."))return;
+["cd_p","cd_h","cd_c","cd_f","cd_pin","cd_fail","cd_until","cd_lastbk"].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});location.reload()};
+let away=0;document.addEventListener("visibilitychange",()=>{if(document.hidden)away=Date.now();else if(getPin()&&away&&Date.now()-away>60000&&!pinRes)verifyLoop(false).then(hideLock)});
+pinInfo();if(getPin())verifyLoop(false).then(hideLock);
+
+// ---- Alimentos ----
+let F=[],plate=[],selF=null,editId=null,curFoods="";
+const SEED=[["Mandioca hervida",38,150,"1 trozo mediano"],["Tallarín / fideo hervido",31,200,"1 plato estándar"],["Arroz blanco cocido",28,150,"1 taza colmada"],["Sopa paraguaya",25,120,"1 cuadrado mediano"],["Chipa guasu",22,120,"1 porción mediana"],["Chipa almidón tradicional",50,100,"1 unidad mediana"],["Papa hervida",17,150,"1 papa mediana"],["Batata / boniato hervido",24,100,"1 unidad chica"],
+["Coquito común paraguayo",65,5,"1 unidad"],["Galleta de campaña / cuarto",58,70,"1 unidad entera"],["Pan Felipe / flauta",52,30,"1/2 unidad"],["Pan de sándwich integral",40,50,"2 rebanadas"],["Pan de miga blanco (sin borde)",44,40,"2 rebanadas finas"],["Rapiditas Bimbo clásicas",53,26,"1 tortilla"],["Rapiditas Bimbo integrales / light",51,26,"1 tortilla"],
+["Banana",22,90,"1 unidad mediana"],["Mango",15,150,"1 taza picada"],["Manzana (con cáscara)",14,150,"1 unidad mediana"],["Naranja / mandarina entera",12,120,"1 unidad mediana"],["Sandía / melón",8,200,"1 porción grande"],["Calabaza / zapallo hervido",6,150,"puré o bori bori"],["Tomate, locote, cebolla, pepino",4,150,"ensalada mixta"],["Hojas verdes (lechuga, acelga, repollo)",0,null,""],
+["Coca-Cola original (roja)",10.6,200,"1 vaso (lata = 355 ml)"],["Coca-Cola Zero / Light",0,200,"1 vaso"],["Leche entera o descremada",5,240,"1 taza"],["Yogur entero clásico (con azúcar)",13,125,"1 pote"],["Yogur diet / light / zero",4,125,"1 pote"],["Jugo de naranja natural / cartón",10,250,"1 vaso"],
+["Queso paraguay / muzzarella / fetas",0,null,""],["Requesón culinario / queso crema",3,30,"1 cucharada"],["Jamón cocido, lomito, panceta",1,null,""],["Chorizo parrillero / casero",1,null,""],["Mayonesa clásica / mostaza",2,15,"1 cucharada"],["Kétchup comercial",24,15,"1 cucharada"],["Salchichas de Viena / panchos",4,100,"2 unidades"],["Carnes (vaca, pollo, pescado) y huevos",0,null,""]];
+function loadF(){const x=lsg("cd_f");if(x){try{F=JSON.parse(x)}catch(e){F=[]}}else{F=SEED.map((s,i)=>({id:i+1,n:s[0],c:s[1],p:s[2],l:s[3]}));saveF()}}
+const saveF=()=>lss("cd_f",JSON.stringify(F));
+const norm=s=>String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+const chOf=(f,g)=>Math.round(f.c*g/100*10)/10;
+const plateTot=()=>Math.round(plate.reduce((s,i)=>s+i.ch,0)*10)/10;
+function renderPlate(){const t=plateTot();$("plate").innerHTML=plate.length?`<b>Plato actual</b>`+plate.map((i,k)=>`<div class="row"><span>${esc(i.n)} · ${i.g} g/ml</span><span><b style="font-size:18px">${i.ch} g</b> <button class="btn" data-rm="${k}" style="padding:4px 10px">✕</button></span></div>`).join("")+`<div class="row total"><span>Total CH</span><b style="font-size:30px">${t} g</b></div><button class="big" id="usePlate" style="margin-top:8px;padding:14px;font-size:17px">Usar ${t} g en la calculadora</button>`:'<div class="small">Plato vacío. Elige alimentos de la lista.</div>'}
+function renderFoods(){const q=norm($("fq").value.trim());const l=F.filter(f=>!q||norm(f.n).includes(q)).sort((a,b)=>a.n.localeCompare(b.n,"es"));
+$("flist").innerHTML=l.length?l.map(f=>`<div class="row" style="gap:6px"><button class="btn" style="flex:1;text-align:left;border-color:var(--line);color:var(--ink)" data-sel="${f.id}">${esc(f.n)}<div class="small">${f.c} g CH/100${f.p?` · porción ${f.p} g${f.l?` (${esc(f.l)})`:""}`:""}</div></button><button class="btn" data-ed="${f.id}" style="padding:8px">✏️</button><button class="btn" data-fdel="${f.id}" style="padding:8px">🗑</button></div>`).join(""):'<div class="small">Sin resultados.</div>'}
+function showSel(f){selF=f;const d=$("fsel"),p=f.p||100;d.hidden=false;
+d.innerHTML=`<b>${esc(f.n)}</b><label>Cantidad (g o ml)</label><input id="qg" type="number" inputmode="decimal" value="${p}">${f.p?`<div class="g2" style="margin-top:6px">${[[.5,"½ porción"],[1,"1 porción"],[2,"2 porciones"],[3,"3 porciones"]].map(x=>`<button class="btn" data-q="${f.p*x[0]}">${x[1]}</button>`).join("")}</div>`:""}<div class="row total"><span>CH</span><b id="qc" style="font-size:30px">${chOf(f,p)} g</b></div><button class="big" id="qadd" style="margin-top:6px;padding:14px;font-size:17px">Agregar al plato</button>`;d.scrollIntoView({behavior:"smooth",block:"nearest"})}
+const upQ=()=>{const g=parseFloat($("qg").value);$("qc").textContent=(g>0?chOf(selF,g):0)+" g"};
+$("fsel").oninput=e=>{if(e.target.id==="qg")upQ()};
+$("fsel").onclick=e=>{const t=e.target;if(t.dataset.q){$("qg").value=t.dataset.q;upQ()}
+if(t.id==="qadd"){const g=parseFloat($("qg").value);if(!(g>0))return;plate.push({n:selF.n,g,ch:chOf(selF,g)});$("fsel").hidden=true;renderPlate()}};
+$("plate").onclick=e=>{const t=e.target;if(t.dataset.rm!==undefined){plate.splice(+t.dataset.rm,1);renderPlate()}
+if(t.id==="usePlate"){$("ch").value=plateTot();curFoods=plate.map(i=>`${i.n} ${i.g}g=${i.ch}g`).join(", ");$("fp").hidden=true}};
+$("flist").onclick=e=>{const b=e.target.closest("button");if(!b)return;const d=b.dataset;
+if(d.sel)showSel(F.find(f=>f.id==d.sel));
+if(d.ed){const f=F.find(x=>x.id==d.ed);editId=f.id;$("fn").value=f.n;$("fc").value=f.c;$("fpp").value=f.p??"";$("fl").value=f.l||"";$("fn").scrollIntoView({behavior:"smooth"})}
+if(d.fdel&&confirm("¿Eliminar este alimento de la lista?")){F=F.filter(f=>f.id!=d.fdel);saveF();renderFoods()}};
+const clearForm=()=>{editId=null;["fn","fc","fpp","fl"].forEach(i=>$(i).value="");$("fErr").textContent=""};
+$("fCancel").onclick=clearForm;
+$("fSave").onclick=()=>{const n=$("fn").value.trim(),c=parseFloat($("fc").value),p=$("fpp").value===""?null:parseFloat($("fpp").value);
+if(!n||!(c>=0)||c>100||(p!==null&&!(p>0))){$("fErr").textContent="Revisa: nombre, CH por 100 g (0 a 100) y porción (mayor que 0).";return}
+const o={n,c,p,l:$("fl").value.trim()};if(editId){Object.assign(F.find(f=>f.id===editId),o)}else F.push({id:Math.max(0,...F.map(f=>f.id))+1,...o});
+saveF();clearForm();renderFoods()};
+$("fq").oninput=renderFoods;
+$("openFp").onclick=()=>{$("fp").hidden=false;$("fsel").hidden=true;renderPlate();renderFoods()};
+$("fpX").onclick=()=>{$("fp").hidden=true};
+loadF();
+
 </script>
 </body>
 </html>
