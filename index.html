@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Control Diabetes</title>
-<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0b6e74"><script>try{if(localStorage.getItem("cd_pin"))document.documentElement.classList.add("locked")}catch(e){}</script><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0b6e74"><script>try{if(localStorage.getItem("cd_pin"))document.documentElement.classList.add("locked");var th=localStorage.getItem("cd_theme");if(th==="dark"||th==="light")document.documentElement.setAttribute("data-theme",th)}catch(e){}</script><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{--bg:#f3f6f8;--card:#fff;--ink:#14232b;--mut:#5d6e77;--line:#d9e2e7;--acc:#0b6e74;--accInk:#fff;--warn:#fff4d6;--warnInk:#6b4a00;--bad:#b3261e;--bar1:#0b6e74;--bar2:#e08a1e;--bar3:#6a5acd;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
@@ -62,19 +62,22 @@ html.locked #lock{display:flex}html.locked main,html.locked nav{visibility:hidde
 <div class="card">
 <label>Momento de la comida</label>
 <div class="meals" id="meals"></div>
-<label for="bg">Glucemia actual (mg/dL)</label><input id="bg" type="number" inputmode="decimal" placeholder="250">
+<label for="bg" id="lblBg">Glucemia actual (mg/dL)</label><input id="bg" type="number" inputmode="decimal" placeholder="250">
 <button class="btn" id="openFp" style="width:100%;margin-top:12px">🍽️ Calcular CH con lista de alimentos</button>
 <label for="ch">Carbohidratos de la comida (g)</label><input id="ch" type="number" inputmode="decimal" placeholder="70">
 <label for="prev">Insulina aplicada previamente (U, opcional)</label><input id="prev" type="number" inputmode="decimal" placeholder="0">
+<div class="small">Solo se registra: no se resta del total calculado.</div>
 <label for="obs">Observaciones</label><textarea id="obs" rows="2"></textarea>
 <button class="big" id="go">🧮 CALCULAR Y GUARDAR</button>
 <div class="err" id="err"></div>
 </div>
 <div class="card" id="res" hidden>
 <div class="small" id="resMeta"></div>
+<div class="warn" id="rWarn" hidden></div>
 <div class="row"><span>Carbohidratos</span><b id="rC"></b></div>
 <div class="row"><span>Corrección</span><b id="rK"></b></div>
 <div class="row total"><span>TOTAL</span><b id="rT"></b></div>
+<div class="small" id="rFsi" style="margin-top:6px"></div>
 <div class="small" id="rNote"></div>
 <p class="small">Resultado calculado con los parámetros configurados. No es una recomendación médica. Registra en Historial cuánto te aplicaste realmente.</p>
 </div>
@@ -122,11 +125,12 @@ html.locked #lock{display:flex}html.locked main,html.locked nav{visibility:hidde
 <div><label>Apidra cena</label><input id="c_ac" type="number" inputmode="decimal"></div>
 <div><label>Constante</label><input id="c_k" type="number" inputmode="decimal"></div>
 <div><label>Multiplicador</label><input id="c_m" type="number" inputmode="decimal" step="0.01"></div>
-<div><label>Glucemia objetivo</label><input id="c_t" type="number" inputmode="decimal"></div>
+<div><label>Glucemia objetivo (mg/dL)</label><input id="c_t" type="number" inputmode="decimal"></div>
 <div><label>Ratio indicado (g/U)</label><input id="c_r" type="number" inputmode="decimal"></div>
+<div><label>Redondeo de dosis</label><select id="c_rd" style="font-size:20px"><option value="1">1 U</option><option value="0.5">0,5 U</option></select></div>
 </div>
 <div class="row"><span>Dosis total diaria</span><b id="d_dtd"></b></div>
-<div class="row"><span>Factor (constante ÷ DTD)</span><b id="d_f"></b></div>
+<div class="row"><span>Factor de sensibilidad (constante ÷ DTD)</span><b id="d_f"></b></div>
 <div class="row"><span>Ratio calculado (factor × mult.)</span><b id="d_rc"></b></div>
 <div class="small">El ratio indicado por tu médico no cambia solo: es el que usa la calculadora.</div>
 <label for="c_why">Motivo / indicado por</label><input id="c_why" type="text" style="font-size:16px" placeholder="Ej.: indicado por diabetólogo">
@@ -134,6 +138,14 @@ html.locked #lock{display:flex}html.locked main,html.locked nav{visibility:hidde
 <div class="err" id="cfgErr"></div>
 </div>
 <h2>Historial de cambios médicos</h2><div id="chg"></div>
+<h2>Apariencia y unidades</h2>
+<div class="card">
+<label for="c_theme">Tema</label><select id="c_theme" style="font-size:18px"><option value="auto">Automático (según el teléfono)</option><option value="light">Claro</option><option value="dark">Oscuro</option></select>
+<label for="c_unit">Unidad de glucemia</label><select id="c_unit" style="font-size:18px"><option value="mg">mg/dL</option><option value="mmol">mmol/L</option></select>
+<div class="small" style="margin-top:6px">La unidad solo cambia cómo escribes y ves la glucemia. Los cálculos y la configuración médica siempre usan mg/dL (1 mmol/L = 18,016 mg/dL).</div>
+</div>
+<h2>Instalar la app</h2>
+<div class="card"><div class="small" id="instSt"></div><button class="big" id="instBtn" style="margin-top:8px;padding:14px;font-size:17px">📲 Instalar app</button></div>
 <h2>PIN de acceso</h2>
 <div class="card"><div class="small" id="pinSt"></div><div class="stack">
 <button class="btn" id="pinOn">🔒 Activar PIN</button><button class="btn" id="pinChg" hidden>Cambiar PIN</button><button class="btn" id="pinOff" hidden>Quitar PIN</button></div>
@@ -150,9 +162,19 @@ html.locked #lock{display:flex}html.locked main,html.locked nav{visibility:hidde
 <div class="small" style="margin-top:8px">La copia se puede compartir a Drive, WhatsApp o correo. Restaurar reemplaza los datos actuales.</div>
 <div class="err" id="bkErr"></div>
 </div>
+<h2>☁️ Copia en Google Drive</h2>
+<div class="card"><div class="small" id="gdInfo"></div>
+<label for="gcid">Client ID de Google (se configura una sola vez)</label><input id="gcid" type="text" style="font-size:14px" placeholder="123456-abc.apps.googleusercontent.com" autocomplete="off">
+<div class="stack"><button class="big" style="margin-top:0" id="gdSave">☁️ Guardar en Drive</button><button class="btn" id="gdRestore">☁️ Restaurar desde Drive</button></div>
+<details style="margin-top:10px"><summary class="small">Cómo obtener el Client ID</summary>
+<ol class="small"><li>Entra a console.cloud.google.com y crea un proyecto.</li><li>APIs y servicios → Biblioteca → activa "Google Drive API".</li><li>Pantalla de consentimiento OAuth: tipo Externo y agrega tu correo como usuario de prueba.</li><li>Credenciales → Crear credenciales → ID de cliente de OAuth → Aplicación web. En "Orígenes autorizados de JavaScript" escribe solo tu dominio, por ejemplo https://TU-USUARIO.github.io (sin la ruta).</li><li>Copia el ID de cliente y pégalo arriba.</li></ol>
+<div class="small">La app solo puede ver el archivo "control-diabetes-copia.json" que ella misma crea en tu Drive, nada más.</div></details>
+<div class="small" style="margin-top:8px">Sin configurar nada, también puedes usar "Guardar copia de seguridad" y elegir Drive en el menú de compartir.</div>
+<div class="err" id="gdErr"></div></div>
 <h2>Prueba de cálculo</h2>
 <div class="card"><button class="btn" id="test">Ejecutar prueba obligatoria</button><div id="testOut" class="small" style="margin-top:8px"></div>
-<div class="small">Glucemia 250, CH 70, DTD 66, objetivo 120, ratio 9 → CH 8 U, corrección 2 U, total 10 U.</div></div>
+<div class="small">Glucemia 250, CH 70, DTD 66, objetivo 120, ratio 9 → CH 8 U, corrección 5 U (130 ÷ 27,27 = 4,77), total 13 U.</div></div>
+<p class="small" style="text-align:center;margin-top:16px" id="about"></p>
 </section>
 </main>
 <div id="lock"><div class="lkb"><div class="lkt" id="lkT"></div><div class="dots" id="lkD"></div><div class="err" id="lkE"></div>
@@ -179,7 +201,8 @@ html.locked #lock{display:flex}html.locked main,html.locked nav{visibility:hidde
 </nav>
 <script>
 const MEALS=["Desayuno","Almuerzo","Cena","Colación"];
-const DEF={tres:30,ad:12,al:12,ac:12,k:1800,m:0.33,t:120,r:9};
+const APP_V="6";
+const DEF={tres:30,ad:12,al:12,ac:12,k:1800,m:0.33,t:120,r:9,rd:1};
 let P={...DEF},H=[],CH=[],meal="Desayuno";
 const $=id=>document.getElementById(id);
 function load(){try{const p=localStorage.getItem("cd_p");if(p)P={...DEF,...JSON.parse(p)};H=JSON.parse(localStorage.getItem("cd_h")||"[]");CH=JSON.parse(localStorage.getItem("cd_c")||"[]")}catch(e){}}
@@ -187,9 +210,15 @@ function save(){try{localStorage.setItem("cd_p",JSON.stringify(P));localStorage.
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const dtdOf=p=>p.tres+p.ad+p.al+p.ac;
 const r2=n=>Math.round(n*100)/100;
-// Lógica exacta indicada: CH = carbs ÷ ratio ; Corrección = (glucemia − objetivo) ÷ DTD ; redondeo al entero más cercano
-function calc(bg,carbs,p){const dtd=dtdOf(p);const chRaw=carbs/p.r;const kRaw=(bg-p.t)/dtd;const kNeg=kRaw<0;
-const ch=Math.round(chRaw),k=kNeg?0:Math.round(kRaw);return{dtd,chRaw,kRaw,ch,k,total:ch+k,kNeg}}
+const MMOL_F=18.016;
+const gu=()=>{try{return localStorage.getItem("cd_unit")==="mmol"?"mmol":"mg"}catch(e){return"mg"}};
+const ul=()=>gu()==="mmol"?"mmol/L":"mg/dL";
+const gn=v=>v==null?null:(gu()==="mmol"?Math.round(v/MMOL_F*10)/10:v);
+const gl=v=>v==null?"–":gu()==="mmol"?(Math.round(v/MMOL_F*10)/10).toFixed(1):String(r2(v));
+const fromU=v=>gu()==="mmol"?Math.round(v*MMOL_F*10)/10:v;
+// Lógica exacta indicada: CH = carbs ÷ ratio ; Corrección = (glucemia − objetivo) ÷ DTD ; redondeo al entero (o a 0,5 U si así se configura) más cercano
+function calc(bg,carbs,p){const dtd=dtdOf(p);const fact=p.k/dtd;const chRaw=carbs/p.r;const kRaw=(bg-p.t)/fact;const kNeg=kRaw<0;
+const q=p.rd>0?p.rd:1,rnd=x=>Math.round(x/q)*q;const ch=rnd(chRaw),k=kNeg?0:rnd(kRaw);return{dtd,fact,chRaw,kRaw,ch,k,total:ch+k,kNeg,q}}
 const fmtD=t=>new Date(t).toLocaleDateString("es",{day:"2-digit",month:"2-digit",year:"numeric"});
 const fmtH=t=>new Date(t).toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"});
 const dayKey=t=>{const d=new Date(t);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
@@ -204,15 +233,18 @@ document.querySelectorAll(".tabs>section").forEach(s=>s.classList.toggle("on",s.
 function drawMeals(){$("meals").innerHTML=MEALS.map(m=>`<button class="${m===meal?"on":""}" data-m="${m}">${m}</button>`).join("")}
 $("meals").onclick=e=>{const b=e.target.closest("button");if(b){meal=b.dataset.m;drawMeals()}};
 $("go").onclick=()=>{
-const bg=parseFloat($("bg").value),carbs=parseFloat($("ch").value);$("err").textContent="";
+const bgIn=parseFloat($("bg").value),bg=fromU(bgIn),carbs=parseFloat($("ch").value);$("err").textContent="";
 if(!(bg>0)||!(carbs>=0)||$("ch").value===""){$("err").textContent="Completa glucemia actual y carbohidratos con números válidos.";return}
 if(bg>900||carbs>500){$("err").textContent="Revisa los valores: parecen fuera de rango.";return}
 const c=calc(bg,carbs,P),now=Date.now();
-H.unshift({id:now,ts:now,meal,bg,carbs,target:P.t,dtd:c.dtd,ratio:P.r,ch:c.ch,corr:c.k,total:c.total,prev:$("prev").value===""?null:parseFloat($("prev").value),applied:null,post:null,obs:$("obs").value.trim(),foods:curFoods});curFoods="";plate=[];
+H.unshift({id:now,ts:now,meal,bg,carbs,target:P.t,dtd:c.dtd,fact:c.fact,ratio:P.r,ch:c.ch,corr:c.k,total:c.total,prev:$("prev").value===""?null:parseFloat($("prev").value),applied:null,post:null,obs:$("obs").value.trim(),foods:curFoods});curFoods="";plate=[];
 save();if(typeof bkInfo==="function")bkInfo();
-$("res").hidden=false;$("resMeta").textContent=`${meal} · ${fmtD(now)} ${fmtH(now)} · glucemia ${bg} · ${carbs} g`;
+$("res").hidden=false;$("resMeta").textContent=`${meal} · ${fmtD(now)} ${fmtH(now)} · glucemia ${gl(bg)} ${ul()} · ${carbs} g`;
 $("rC").textContent=c.ch+" U";$("rK").textContent=c.k+" U";$("rT").textContent=c.total+" U";
-$("rNote").textContent=`CH: ${carbs} ÷ ${P.r} = ${r2(c.chRaw)}. Corrección: (${bg} − ${P.t}) ÷ ${c.dtd} = ${r2(c.kRaw)}${c.kNeg?" (bajo el objetivo: se muestra 0 U)":""}.`+(bg<70?" ⚠️ Glucemia baja: sigue el plan de hipoglucemia indicado por tu médico.":"");
+$("rFsi").textContent=`Factor de sensibilidad: 1 U baja ≈ ${r2(c.fact)} mg/dL`+(gu()==="mmol"?` (${r1(c.fact/MMOL_F)} mmol/L)`:"")+` · redondeo a ${c.q===0.5?"0,5":"1"} U`;
+const pv=$("prev").value===""?0:parseFloat($("prev").value);
+$("rWarn").hidden=!(pv>0);if(pv>0)$("rWarn").textContent=`Indicaste ${pv} U de insulina previa. La app NO la resta del total: consulta con tu diabetólogo cómo considerarla (la insulina activa, las comidas y el ejercicio influyen en la dosis).`;
+$("rNote").textContent=`CH: ${carbs} ÷ ${P.r} = ${r2(c.chRaw)}. Corrección: (${r2(bg)} − ${P.t} mg/dL) ÷ ${r2(c.fact)} = ${r2(c.kRaw)}${c.kNeg?" (bajo el objetivo: se muestra 0 U)":""}.`+(bg<70?" ⚠️ Glucemia baja: sigue el plan de hipoglucemia indicado por tu médico.":"");
 ["bg","ch","prev","obs"].forEach(i=>$(i).value="");$("res").scrollIntoView({behavior:"smooth"})};
 
 // Historial
@@ -221,17 +253,17 @@ function inPeriod(ts,days){if(!days)return true;const s=new Date();s.setHours(0,
 function renderHist(){const days=+$("fPer").value,m=$("fMeal").value;
 const l=H.filter(r=>inPeriod(r.ts,days)&&(!m||r.meal===m));
 $("hist").innerHTML=l.length?l.map(r=>`<div class="rec"><h3>${esc(r.meal)} · ${fmtD(r.ts)} ${fmtH(r.ts)}</h3>
-<div class="k"><span>Glucemia: <b>${r.bg}</b></span><span>CH: <b>${r.carbs} g</b></span>
-<span>Objetivo: ${r.target}</span><span>DTD: ${r.dtd} U</span><span>Ratio: 1 U/${r.ratio} g</span><span>Previa: ${r.prev??"–"}</span>
+<div class="k"><span>Glucemia: <b>${gl(r.bg)}</b> ${ul()}</span><span>CH: <b>${r.carbs} g</b></span>
+<span>Objetivo: ${gl(r.target)}</span><span>DTD: ${r.dtd} U${r.fact?` · factor ${r2(r.fact)}`:""}</span><span>Ratio: 1 U/${r.ratio} g</span><span>Previa: ${r.prev??"–"}</span>
 <span>Insulina CH: ${r.ch} U</span><span>Corrección: ${r.corr} U</span></div>
 <div class="row total" style="border-top-width:2px"><span>Total calculado</span><b style="font-size:22px">${r.total} U</b></div>
 <div class="g2"><div><label>Aplicada (U)</label><input type="number" inputmode="decimal" value="${r.applied??""}" data-id="${r.id}" data-f="applied"></div>
-<div><label>Glucemia posterior</label><input type="number" inputmode="decimal" value="${r.post??""}" data-id="${r.id}" data-f="post"></div></div>
+<div><label>Glucemia posterior (${ul()})</label><input type="number" inputmode="decimal" value="${r.post==null?"":gl(r.post)}" data-id="${r.id}" data-f="post"></div></div>
 ${r.foods?`<div class="small">🍽️ ${esc(r.foods)}</div>`:""}
 ${r.obs?`<div class="small">📝 ${esc(r.obs)}</div>`:""}
 <button class="btn" style="margin-top:8px;color:var(--bad);border-color:var(--bad)" data-del="${r.id}">Eliminar</button></div>`).join(""):'<div class="card small">Sin registros. Haz tu primer cálculo en la Calculadora.</div>'}
 $("fPer").onchange=$("fMeal").onchange=renderHist;
-$("hist").onchange=e=>{const t=e.target;if(!t.dataset.id)return;const r=H.find(x=>x.id==t.dataset.id);if(r){r[t.dataset.f]=t.value===""?null:parseFloat(t.value);save()}};
+$("hist").onchange=e=>{const t=e.target;if(!t.dataset.id)return;const r=H.find(x=>x.id==t.dataset.id);if(r){r[t.dataset.f]=t.value===""?null:(t.dataset.f==="post"?fromU(parseFloat(t.value)):parseFloat(t.value));save()}};
 $("hist").onclick=e=>{const id=e.target.dataset.del;if(id&&confirm("¿Eliminar este registro?")){H=H.filter(x=>x.id!=id);save();renderHist()}};
 
 // Estadísticas
@@ -241,18 +273,18 @@ const vals=keys.map(k=>data[k]),mx=Math.max(...vals)||1,w=Math.max(300,keys.leng
 return`<div class="card"><b>${title}</b><div class="chart"><svg width="${w}" height="150" viewBox="0 0 ${w} 150">${keys.map((k,i)=>{const h=vals[i]/mx*100,x=i*44+6;return`<rect x="${x}" y="${120-h}" width="32" height="${h}" rx="4" fill="${color}"/><text x="${x+16}" y="${114-h}" text-anchor="middle">${vals[i]}</text><text x="${x+16}" y="136" text-anchor="middle">${k.slice(8)}/${k.slice(5,7)}</text>`}).join("")}</svg></div></div>`}
 function byDay(list,fn,mode){const o={};list.forEach(r=>{const v=fn(r);if(v==null)return;(o[dayKey(r.ts)]??=[]).push(v)});const out={};for(const k in o)out[k]=mode==="sum"?r2(o[k].reduce((a,b)=>a+b,0)):avg(o[k]);return out}
 function renderStats(){const d=+$("sPer").value,l=H.filter(r=>inPeriod(r.ts,d));
-const pre=l.map(r=>r.bg),post=l.filter(r=>r.post!=null).map(r=>r.post),ap=l.filter(r=>r.applied!=null).map(r=>r.applied);
-$("stats").innerHTML=`<div class="card"><div class="g2"><div>Glucemia promedio<br><b style="font-size:26px">${avg(pre)}</b></div><div>Promedio posterior<br><b style="font-size:26px">${avg(post)}</b></div>
+const pre=l.map(r=>gn(r.bg)),post=l.filter(r=>r.post!=null).map(r=>gn(r.post)),ap=l.filter(r=>r.applied!=null).map(r=>r.applied);
+$("stats").innerHTML=`<div class="card"><div class="g2"><div>Glucemia promedio (${ul()})<br><b style="font-size:26px">${avg(pre)}</b></div><div>Promedio posterior (${ul()})<br><b style="font-size:26px">${avg(post)}</b></div>
 <div>Promedio CH<br><b style="font-size:26px">${avg(l.map(r=>r.carbs))} g</b></div><div>Insulina aplicada (total)<br><b style="font-size:26px">${r2(ap.reduce((a,b)=>a+b,0))} U</b></div></div></div>`
-+bars("Glucemia antes de comer (promedio por día)",byDay(l,r=>r.bg),"var(--bar1)")
-+bars("Glucemia posterior (promedio por día)",byDay(l,r=>r.post),"var(--bar2)")
++bars(`Glucemia antes de comer (${ul()}, promedio por día)`,byDay(l,r=>gn(r.bg)),"var(--bar1)")
++bars(`Glucemia posterior (${ul()}, promedio por día)`,byDay(l,r=>gn(r.post)),"var(--bar2)")
 +bars("Insulina aplicada por día (U)",byDay(l,r=>r.applied,"sum"),"var(--bar3)")
-+`<div class="card"><b>Antes de comer por momento</b>${MEALS.map(m=>`<div class="row"><span>${m}</span><b style="font-size:20px">${avg(l.filter(r=>r.meal===m).map(r=>r.bg))}</b></div>`).join("")}</div>`}
++`<div class="card"><b>Antes de comer por momento</b>${MEALS.map(m=>`<div class="row"><span>${m}</span><b style="font-size:20px">${avg(l.filter(r=>r.meal===m).map(r=>gn(r.bg)))}</b></div>`).join("")}</div>`}
 $("sPer").onchange=renderStats;
 
 // Configuración
-const ids={tres:"c_tres",ad:"c_ad",al:"c_al",ac:"c_ac",k:"c_k",m:"c_m",t:"c_t",r:"c_r"};
-const names={tres:"Tresiba",ad:"Apidra desayuno",al:"Apidra almuerzo",ac:"Apidra cena",k:"Constante",m:"Multiplicador",t:"Glucemia objetivo",r:"Ratio indicado"};
+const ids={tres:"c_tres",ad:"c_ad",al:"c_al",ac:"c_ac",k:"c_k",m:"c_m",t:"c_t",r:"c_r",rd:"c_rd"};
+const names={tres:"Tresiba",ad:"Apidra desayuno",al:"Apidra almuerzo",ac:"Apidra cena",k:"Constante",m:"Multiplicador",t:"Glucemia objetivo",r:"Ratio indicado",rd:"Redondeo (U)"};
 function readCfg(){const p={};for(const k in ids){p[k]=parseFloat($(ids[k]).value);if(!(p[k]>0))return null}return p}
 function derived(){const p=readCfg()||P,d=dtdOf(p),f=p.k/d;$("d_dtd").textContent=d+" U";$("d_f").textContent=r2(f);$("d_rc").textContent=r2(f*p.m)+" g/U"}
 function renderCfg(){for(const k in ids)$(ids[k]).value=P[k];derived();
@@ -265,8 +297,8 @@ if(!items.length){$("cfgErr").textContent="No hay cambios.";return}
 if(!$("c_why").value.trim()){$("cfgErr").textContent="Indica el motivo (ej.: indicado por diabetólogo).";return}
 if(!confirm("¿Confirmas que tu diabetólogo indicó este cambio?"))return;
 CH.unshift({ts:Date.now(),why:$("c_why").value.trim(),items});P=n;save();$("c_why").value="";renderCfg()};
-$("test").onclick=()=>{const c=calc(250,70,{...DEF});const ok=dtdOf(DEF)===66&&r2(1800/66)===27.27&&c.ch===8&&c.k===2&&c.total===10;
-$("testOut").innerHTML=ok?'<span class="ok">✔ Prueba superada: CH 8 U + corrección 2 U = 10 U</span>':`<span class="err">✘ Falló: ${c.ch} + ${c.k} = ${c.total}</span>`};
+$("test").onclick=()=>{const c=calc(250,70,{...DEF});const h=calc(240,70,{...DEF,rd:0.5});const ok=dtdOf(DEF)===66&&r2(1800/66)===27.27&&c.ch===8&&c.k===5&&c.total===13&&h.k===4.5&&Math.round(13.9*MMOL_F)===250;
+$("testOut").innerHTML=ok?'<span class="ok">✔ Prueba superada: CH 8 U + corrección 5 U = 13 U (redondeo 0,5 U y conversión mmol/L también correctos)</span>':`<span class="err">✘ Falló: ${c.ch} + ${c.k} = ${c.total}</span>`};
 
 load();drawMeals();drawFilters();
 
@@ -281,16 +313,18 @@ const old=!t||Date.now()-t>7*864e5;$("bkBanner").hidden=!(H.length>0&&old)}
 $("bkBanner").onclick=()=>document.querySelector('nav [data-t="cfg"]').click();
 $("bkSave").onclick=async()=>{const d={app:"control-diabetes",v:2,ts:Date.now(),P,H,CH,F};
 if(await dl(`control-diabetes-copia-${stamp()}.json`,JSON.stringify(d),"application/json")){try{localStorage.setItem("cd_lastbk",Date.now())}catch(e){}bkInfo()}};
+
+function restoreFrom(d){
+if(!d||d.app!=="control-diabetes"||!Array.isArray(d.H)||!Array.isArray(d.CH)||!d.P)throw 0;
+const pp={...DEF,...d.P};for(const k in DEF)if(!(pp[k]>0))throw 0;
+if(!confirm(`Se reemplazarán los datos actuales por la copia del ${fmtD(d.ts)}: ${d.H.length} registros y ${d.CH.length} cambios médicos. ¿Continuar?`))return false;
+P=pp;H=d.H;CH=d.CH;if(Array.isArray(d.F)){F=d.F;saveF()}save();renderCfg();bkInfo();alert("Copia restaurada.");return true}
 $("bkRestore").onclick=()=>$("bkFile").click();
 $("bkFile").onchange=async e=>{const f=e.target.files[0];e.target.value="";$("bkErr").textContent="";if(!f)return;
-try{const d=JSON.parse(await f.text());
-if(d.app!=="control-diabetes"||!Array.isArray(d.H)||!Array.isArray(d.CH)||!d.P)throw 0;
-for(const k in DEF)if(!(d.P[k]>0))throw 0;
-if(!confirm(`Se reemplazarán los datos actuales por la copia del ${fmtD(d.ts)}: ${d.H.length} registros y ${d.CH.length} cambios médicos. ¿Continuar?`))return;
-P={...DEF,...d.P};H=d.H;CH=d.CH;if(Array.isArray(d.F)){F=d.F;saveF()}save();renderCfg();bkInfo();alert("Copia restaurada.")}
+try{restoreFrom(JSON.parse(await f.text()))}
 catch(err){$("bkErr").textContent="El archivo no es una copia válida de Control Diabetes. No se modificó nada."}};
 $("xCsv").onclick=()=>{const q=v=>{v=v==null?"":String(v);return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
-const head=["Fecha","Hora","Momento","Glucemia","CH (g)","Objetivo","DTD","Ratio (g/U)","Insulina CH","Corrección","Total calculado","Previa","Aplicada","Glucemia posterior","Observaciones","Alimentos"];
+const head=["Fecha","Hora","Momento","Glucemia (mg/dL)","CH (g)","Objetivo (mg/dL)","DTD","Ratio (g/U)","Insulina CH","Corrección","Total calculado","Previa","Aplicada","Glucemia posterior (mg/dL)","Observaciones","Alimentos"];
 const rows=H.slice().reverse().map(r=>[fmtD(r.ts),fmtH(r.ts),r.meal,r.bg,r.carbs,r.target,r.dtd,r.ratio,r.ch,r.corr,r.total,r.prev,r.applied,r.post,r.obs,r.foods]);
 dl(`control-diabetes-${stamp()}.csv`,"\ufeff"+[head,...rows].map(r=>r.map(q).join(";")).join("\r\n"),"text/csv")};
 $("xPdf").onclick=()=>{$("fPer").value="0";$("fMeal").value="";document.querySelector('nav [data-t="hist"]').click();setTimeout(()=>window.print(),150)};
@@ -327,7 +361,7 @@ $("pinOn").onclick=newPin;
 $("pinChg").onclick=async()=>{if(await verifyLoop(true))await newPin();else hideLock()};
 $("pinOff").onclick=async()=>{if(await verifyLoop(true)){hideLock();try{localStorage.removeItem("cd_pin")}catch(e){}pinInfo()}else hideLock()};
 $("lkF").onclick=()=>{if(!confirm("Se borrarán TODOS los datos de esta app en este teléfono (historial, parámetros, alimentos y PIN). Solo podrás recuperarlos con una copia de seguridad. ¿Continuar?"))return;if(!confirm("¿Seguro? No se puede deshacer."))return;
-["cd_p","cd_h","cd_c","cd_f","cd_pin","cd_fail","cd_until","cd_lastbk"].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});location.reload()};
+["cd_p","cd_h","cd_c","cd_f","cd_pin","cd_fail","cd_until","cd_lastbk","cd_lastgd","cd_gcid"].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});location.reload()};
 let away=0;document.addEventListener("visibilitychange",()=>{if(document.hidden)away=Date.now();else if(getPin()&&away&&Date.now()-away>60000&&!pinRes)verifyLoop(false).then(hideLock)});
 pinInfo();if(getPin())verifyLoop(false).then(hideLock);
 
@@ -384,6 +418,51 @@ function renderA1c(){const a=a1Avg();$("a1Avg").textContent=a.n?`Tu promedio: ${
 $("a1Per").onchange=renderA1c;
 $("a1Use").onclick=()=>{const a=a1Avg();renderA1c();if(!a.n)return;$("a1mg").value=Math.round(a.v);a1f("a1mg")};
 renderA1c();
+
+// ---- v6: tema, unidad, instalación, Drive ----
+const r1b=n=>Math.round(n*10)/10;
+function applyTheme(){const v=lsg("cd_theme")||"auto",r=document.documentElement;if(v==="dark"||v==="light")r.setAttribute("data-theme",v);else r.removeAttribute("data-theme");$("c_theme").value=v}
+$("c_theme").onchange=()=>{lss("cd_theme",$("c_theme").value);applyTheme()};
+function applyUnit(){$("lblBg").textContent=`Glucemia actual (${ul()})`;$("bg").placeholder=gu()==="mmol"?"13.9":"250";$("bg").step=gu()==="mmol"?"0.1":"1";$("c_unit").value=gu()}
+$("c_unit").onchange=()=>{lss("cd_unit",$("c_unit").value);$("bg").value="";applyUnit()};
+applyTheme();applyUnit();$("about").textContent=`Control Diabetes · versión ${APP_V} · id control-diabetes-app`;
+// Instalar
+let dip=null;
+const isStandalone=()=>(window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone===true;
+function instInfo(){const st=isStandalone();$("instSt").textContent=st?"La app ya está instalada en este teléfono ✔":(dip?"Lista para instalar en tu pantalla de inicio.":"Si no aparece la ventana de instalación, usa el menú ⋮ de Chrome → Instalar app.");$("instBtn").hidden=st}
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();dip=e;instInfo()});
+addEventListener("appinstalled",()=>{dip=null;instInfo()});
+$("instBtn").onclick=async()=>{if(dip){dip.prompt();try{await dip.userChoice}catch(e){}dip=null;instInfo()}else alert("En Chrome toca el menú ⋮ y elige «Instalar app» (o «Añadir a la pantalla de inicio»). Debes abrir la app desde su dirección en Chrome, no desde otra app.")};
+instInfo();
+// Google Drive (token OAuth en el navegador, alcance drive.file)
+const GD_NAME="control-diabetes-copia.json";let gTok=null,gExp=0,gsiP=null;
+function loadGsi(){if(window.google&&google.accounts&&google.accounts.oauth2)return Promise.resolve();if(gsiP)return gsiP;
+gsiP=new Promise((res,rej)=>{const x=document.createElement("script");x.src="https://accounts.google.com/gsi/client";x.onload=res;x.onerror=()=>{gsiP=null;rej(new Error("Sin conexión con Google."))};document.head.appendChild(x)});return gsiP}
+async function gToken(){if(gTok&&Date.now()<gExp)return gTok;
+const id=(lsg("cd_gcid")||"").trim();if(!id)throw new Error("Falta el Client ID de Google (ver «Cómo obtener el Client ID»).");
+await loadGsi();
+return new Promise((res,rej)=>{try{google.accounts.oauth2.initTokenClient({client_id:id,scope:"https://www.googleapis.com/auth/drive.file",
+callback:r=>{if(r.error)return rej(new Error(r.error_description||r.error));gTok=r.access_token;gExp=Date.now()+(r.expires_in-60)*1000;res(gTok)},
+error_callback:e=>rej(new Error(e.type==="popup_closed"?"Cancelaste el acceso a Google.":(e.message||e.type||"No se pudo abrir el acceso a Google.")))}).requestAccessToken()}catch(e){rej(e)}})}
+async function gApi(url,opt={}){const t=await gToken();const r=await fetch(url,{...opt,headers:{...(opt.headers||{}),Authorization:"Bearer "+t}});
+if(r.status===401){gTok=null;throw new Error("Sesión de Google vencida. Intenta de nuevo.")}
+if(!r.ok)throw new Error("Google Drive respondió con error "+r.status+".");return r}
+async function gFind(){const r=await gApi("https://www.googleapis.com/drive/v3/files?spaces=drive&fields=files(id,modifiedTime)&q="+encodeURIComponent(`name='${GD_NAME}' and trashed=false`));const j=await r.json();return(j.files||[])[0]||null}
+function gdInfo(){const t=+lsg("cd_lastgd")||0;$("gdInfo").textContent=t?`Última copia en Drive: ${fmtD(t)} ${fmtH(t)}`:"Aún no hay copia en Drive."}
+$("gcid").onchange=()=>{lss("cd_gcid",$("gcid").value.trim())};
+$("gdSave").onclick=async()=>{$("gdErr").textContent="";lss("cd_gcid",$("gcid").value.trim());const b=$("gdSave");b.disabled=true;
+try{const body=JSON.stringify({app:"control-diabetes",v:2,ts:Date.now(),P,H,CH,F});const f=await gFind();
+if(f)await gApi(`https://www.googleapis.com/upload/drive/v3/files/${f.id}?uploadType=media`,{method:"PATCH",headers:{"Content-Type":"application/json"},body});
+else{const bd="cdbound"+Date.now();const mp=`--${bd}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({name:GD_NAME,mimeType:"application/json"})}\r\n--${bd}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${bd}--`;
+await gApi("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{"Content-Type":"multipart/related; boundary="+bd},body:mp})}
+lss("cd_lastgd",Date.now());lss("cd_lastbk",Date.now());gdInfo();bkInfo();alert("Copia guardada en Google Drive.")}
+catch(e){$("gdErr").textContent=e.message||"No se pudo guardar en Drive."}finally{b.disabled=false}};
+$("gdRestore").onclick=async()=>{$("gdErr").textContent="";lss("cd_gcid",$("gcid").value.trim());const b=$("gdRestore");b.disabled=true;
+try{const f=await gFind();if(!f)throw new Error("No hay copia en tu Drive todavía.");
+const r=await gApi(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`);let d;try{d=await r.json()}catch(e){throw new Error("La copia de Drive no es válida.")}
+try{if(restoreFrom(d)){lss("cd_lastgd",Date.now());gdInfo()}}catch(e){throw new Error("La copia de Drive no es una copia válida de Control Diabetes. No se modificó nada.")}}
+catch(e){$("gdErr").textContent=e.message||"No se pudo restaurar desde Drive."}finally{b.disabled=false}};
+const _rc=renderCfg;renderCfg=function(){_rc();applyTheme();applyUnit();instInfo();gdInfo();$("gcid").value=lsg("cd_gcid")||"";if(lsg("cd_gcid"))loadGsi().catch(()=>{})};
 </script>
 </body>
 </html>
